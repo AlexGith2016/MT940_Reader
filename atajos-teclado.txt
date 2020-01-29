@@ -1,0 +1,15 @@
+ctrl+n -> crear nuevo archivo
+ctrl+shift+d -> duplica la linea donde esta el cursor
+ctrl+shift+/ - ctrl+} -> crea un comentario donde esta el cursor
+ctrl+up - ctrl+down -> sube o baja una linea de código
+ctrl+l ->selecciona una linea de código
+ctrl+shift+k -> borra una linea de código
+shift+inicio -> selecciona desde el cursor hasta el inicio de la linea
+shift+fin -> selecciona desde el cursor hasta el fin de la linea
+ctrl+shift+click -> ubica otro cursor en otra linea
+alt+O -> abre el outline para ver funciones y atributos
+ctrl+P -> abre buscador de archivos
+ctrl+a -> selecciona todo el archivo
+ctrl+inicio - ctrl+fin -> ubica el inicio/fin del archivos
+ctrl+f ->busca una variable en el archivos
+ctrl+shift+f -> busca una variable en un directorio
