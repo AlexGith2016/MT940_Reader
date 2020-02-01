@@ -70,20 +70,20 @@
                       <div class="form-group row">
                         <label class="col-sm-3 col-form-label" for="txtCuenta">Cuenta: </label>
                         <div class="col-sm-8">
-                          <input id="txtCuenta" class="form-control" type="text" name="txtCuenta" disabled> 
+                          <input id="txtCuenta" class="form-control" type="text" name="txtCuenta" >
                         </div>
                       </div>
                       <div class="form-group row" style="margin-top: 20px;">
                         <label class="col-sm-3 col-form-label" for="txtFecha">Fecha: </label>
                         <div class="col-sm-8">
-                          <input id="txtFecha" class="form-control" type="text" name="txtFecha"> 
+                          <input id="txtFecha" class="form-control" type="text" disabled name="txtFecha">
                         </div>
                       </div>
                     </div>
 
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                      <a href="#" class="btn btn-primary" id="btnGuardarMotivo">Guardar</a>
+                      <a href="#" class="btn btn-primary" id="btnBuscar">Buscar</a>
                     </div>
                   </div>
                 </div>
@@ -97,12 +97,18 @@
                           <thead>
                               <tr>
                                   <th>Id</th>
-                                  <th>Motivo</th>
-                                  <th>Opciones</th>
+                                  <th>Fecha</th>
+                                  <th>Indicador</th>
+                                  <th>Monto</th>
+                                  <th>Tipo</th>
+                                  <th>Ref</th>
                               </tr>
                           </thead>
                           <tbody>
                               <tr>
+                                  <td>N/D</td>
+                                  <td>N/D</td>
+                                  <td>N/D</td>
                                   <td>N/D</td>
                                   <td>N/D</td>
                                   <td>N/D</td>
@@ -111,8 +117,14 @@
                                   <td>xxxxxxx</td>
                                   <td>xxxxxxx</td>
                                   <td>xxxxxx</td>
+                                  <td>xxxxxxx</td>
+                                  <td>xxxxxxx</td>
+                                  <td>xxxxxx</td>
                               </tr>
                               <tr>
+                                  <td>yyyyyyyy</td>
+                                  <td>yyyyyyyy</td>
+                                  <td>yyyyyyyy</td>
                                   <td>yyyyyyyy</td>
                                   <td>yyyyyyyy</td>
                                   <td>yyyyyyyy</td>
@@ -121,6 +133,7 @@
                       </table>
                   </div>
               </div>
+              <!-- <input type="file" id="getfiles" webkitdirectory directory multiple/> -->
             </form>
             <!-- Final del formulario -->
           </div>
@@ -135,20 +148,94 @@
 
     <!-- Copyright -->
     <div class="footer-copyright text-center py-3">© 2020 Copyright:
-      <a href="https://mdbootstrap.com/education/bootstrap/"> CREDICOOP</a>
+      <a href="#"> CREDICOOP</a>
     </div>
     <!-- Copyright final-->
 
   </footer>
   <!-- Footer final-->
+  <script type='text/javascript'>
+    var initReq = {method:"GET",
+      header:{
+        "Content-Type":"application-json"
+      },
+      mode:"cors",
+      cache:"default"
+    };
+    var requestJson = new Request("Scripts/Config.json", initReq);
+    var dataS= null;
 
-  <script>
+    var transac  = null;
     $(document).ready(function () {
-        getMotivoBaja();
-        $('#txtFecha').datepicker({ format: 'dd-mm-yyyy' });
+        getTrans();
+        var dateNow = new Date();
+        var dnFormat = (dateNow.getDate()<=9 ? "0"+dateNow.getDate() : dateNow.getDate())
+          + "-" + ((dateNow.getMonth()+1)<=9 ? "0"+(dateNow.getMonth()+1) : (dateNow.getMonth()+1))
+          + "-" + dateNow.getFullYear();
+        $('#txtFecha').val(dnFormat);
+
+        fetch(requestJson).then(function(resp){
+          return resp.blob();
+        }).then(function(data){
+          var metadata = {
+            type: 'application/json'
+          };
+          var file = new File([data], "Config.json", metadata);
+          var reader = new FileReader();
+          reader.readAsText(file);
+          reader.onload =  function(){
+            dataS = JSON.parse(reader.result);
+          };
+        });
+
+        navigator.webkitPersistentStorage.requestQuota(5*1024*1024, function(grantedBytes) {
+          console.log("Permission granted");
+          window.requestFileSystem  = window.requestFileSystem || window.webkitRequestFileSystem;
+          window.requestFileSystem(PERSISTENT, grantedBytes, onInitFs, errorHandler);
+        }, function(e) {
+          console.log('Error', e);
+        });
     });
 
-    function getMotivoBaja() {
+    function onInitFs(fs) {
+      console.log("search file");
+      fs.root.getFile('Config.json', {}, function(fileEntry) {
+        console.log("file founded");
+        fileEntry.file(function(file){
+          var reader = new FileReader();
+          reader.onloadend = function(e) {
+             console.log(JSON.parse(this.result));
+           };
+          reader.readAsText(file);
+        });
+      }, errorHandler);
+    }
+    function onCreateFs(fs) {
+      console.log("creating file");
+      fs.root.getFile('Config.json', { create : true , exclusive : true}, function(fileEntry) {
+        fileEntry.createWriter(function(writer) {
+          writer.onwriteend = function(e) {
+            console.log('file created');
+          };
+          var blob = new Blob([JSON.stringify(dataS)], {type : "application/json"});
+          writer.write(blob);
+        });
+      });
+    }
+    function errorHandler(e) {
+      switch(e.code){
+        case 8:
+          console.log("FS error: No se encontró el directorio o archivo de las transacciónes, crear uno");
+          window.requestFileSystem(PERSISTENT, 5*1024*1024, onCreateFs, errorHandler);
+          break;
+        default:
+          console.log("FS error: "+e.code, e);
+          break;
+      }
+
+    }
+
+    function getTrans() {
         var table = $("#dtTran").DataTable({
           "dom":"<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>"+
           "<'row'<'col-sm-12'tr>>"+
@@ -169,6 +256,17 @@
           }
       });
     }
-
+    var saveData = function (data, fileName) {
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+      var json = JSON.stringify(data),
+          blob = new Blob([json], {type: "octet/stream"}),
+          url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    };
   </script>
 </html>

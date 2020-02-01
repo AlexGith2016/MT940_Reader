@@ -1,0 +1,15 @@
+{
+  "acnts":[
+    {
+      "acntNum":"1",
+      "typeAcnt":"C",
+      "coinAcnt":"NIO",
+      "data":[{
+        "stateN":0,
+        "initBal":0.0,
+        "dateRep":"30-01-2020",
+        "finalBal":0.0
+        }]
+    }
+  ]
+}
