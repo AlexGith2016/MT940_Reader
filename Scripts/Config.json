@@ -3,7 +3,7 @@
     {
       "acntNum":"1",
       "typeAcnt":"C",
-      "coinAcnt":"NIO",
+      "coinAcnt":"COR",
       "data":[{
         "stateN":0,
         "initBal":0.0,

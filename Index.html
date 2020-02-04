@@ -49,7 +49,10 @@
                   Creación de formato MT940 - SWIFT para transacciones</h4>
               </div>
               <div class="row" style="margin-bottom: 3%;">
-                  <div class="form-group col-md-8"></div>
+                  <div class="form-group col-md-4"></div>
+                  <div class="form-group col-md-4">
+                    <a style="display: none" id="btnDoFormat"  class="btn btn-info">Realizar formato MT940</a>
+                  </div>
                   <div class="form-group col-md-4" >
                       <a href="" id="btnBuscarTran"  class="btn btn-primary" data-toggle="modal" data-target="#BuscarTranModal">Buscar transacciones</a>
                   </div>
@@ -68,15 +71,15 @@
 
                     <div class="modal-body">
                       <div class="form-group row">
-                        <label class="col-sm-3 col-form-label" for="txtCuenta">Cuenta: </label>
+                        <label class="col-sm-3 col-form-label" for="txtAcnt">Cuenta: </label>
                         <div class="col-sm-8">
-                          <input id="txtCuenta" class="form-control" type="text" name="txtCuenta" >
+                          <input id="txtAcnt" class="form-control" type="text" name="txtAcnt" >
                         </div>
                       </div>
                       <div class="form-group row" style="margin-top: 20px;">
-                        <label class="col-sm-3 col-form-label" for="txtFecha">Fecha: </label>
+                        <label class="col-sm-3 col-form-label" for="txtDate">Fecha: </label>
                         <div class="col-sm-8">
-                          <input id="txtFecha" class="form-control" type="text" disabled name="txtFecha">
+                          <input id="txtDate" class="form-control" type="text" disabled name="txtDate">
                         </div>
                       </div>
                     </div>
@@ -96,9 +99,8 @@
                       <table id="dtTran" class="table table-striped table-bordered dt-responsive nowrap">
                           <thead>
                               <tr>
-                                  <th>Id</th>
                                   <th>Fecha</th>
-                                  <th>Indicador</th>
+                                  <th>Ind</th>
                                   <th>Monto</th>
                                   <th>Tipo</th>
                                   <th>Ref</th>
@@ -106,28 +108,25 @@
                           </thead>
                           <tbody>
                               <tr>
-                                  <td>N/D</td>
-                                  <td>N/D</td>
-                                  <td>N/D</td>
-                                  <td>N/D</td>
-                                  <td>N/D</td>
-                                  <td>N/D</td>
+                                  <td>01-02-2020</td>
+                                  <td>C</td>
+                                  <td>10.5</td>
+                                  <td>DP</td>
+                                  <td>00001</td>
                               </tr>
                               <tr>
-                                  <td>xxxxxxx</td>
-                                  <td>xxxxxxx</td>
-                                  <td>xxxxxx</td>
-                                  <td>xxxxxxx</td>
-                                  <td>xxxxxxx</td>
-                                  <td>xxxxxx</td>
+                                  <td>02-02-2020</td>
+                                  <td>C</td>
+                                  <td>20.2</td>
+                                  <td>DP</td>
+                                  <td>00002</td>
                               </tr>
                               <tr>
-                                  <td>yyyyyyyy</td>
-                                  <td>yyyyyyyy</td>
-                                  <td>yyyyyyyy</td>
-                                  <td>yyyyyyyy</td>
-                                  <td>yyyyyyyy</td>
-                                  <td>yyyyyyyy</td>
+                                  <td>03-02-2020</td>
+                                  <td>C</td>
+                                  <td>30.2</td>
+                                  <td>DP</td>
+                                  <td>00003</td>
                               </tr>
                           </tbody>
                       </table>
@@ -164,31 +163,19 @@
     };
     var requestJson = new Request("Scripts/Config.json", initReq);
     var dataS= null;
+    var transacFind= {"acntNum":"", "dateRep":null};
+    var tableTransac = null;
 
-    var transac  = null;
+    //Init doc/////////////////////////////////
     $(document).ready(function () {
         getTrans();
         var dateNow = new Date();
         var dnFormat = (dateNow.getDate()<=9 ? "0"+dateNow.getDate() : dateNow.getDate())
           + "-" + ((dateNow.getMonth()+1)<=9 ? "0"+(dateNow.getMonth()+1) : (dateNow.getMonth()+1))
           + "-" + dateNow.getFullYear();
-        $('#txtFecha').val(dnFormat);
+        $('#txtDate').val(dnFormat);
 
-        fetch(requestJson).then(function(resp){
-          return resp.blob();
-        }).then(function(data){
-          var metadata = {
-            type: 'application/json'
-          };
-          var file = new File([data], "Config.json", metadata);
-          var reader = new FileReader();
-          reader.readAsText(file);
-          reader.onload =  function(){
-            dataS = JSON.parse(reader.result);
-          };
-        });
-
-        navigator.webkitPersistentStorage.requestQuota(5*1024*1024, function(grantedBytes) {
+        navigator.webkitPersistentStorage.requestQuota(10*1024*1024, function(grantedBytes) {
           console.log("Permission granted");
           window.requestFileSystem  = window.requestFileSystem || window.webkitRequestFileSystem;
           window.requestFileSystem(PERSISTENT, grantedBytes, onInitFs, errorHandler);
@@ -196,72 +183,284 @@
           console.log('Error', e);
         });
     });
+    //Init doc/////////////////////////////////
 
-    function onInitFs(fs) {
+    //method to alter fileSystem/////////////////////////////////
+    var getFileInit = (fs) =>{
+      fetch(requestJson).then(function(resp){
+        return resp.blob();
+      }).then(function(data){
+        var metadata = {
+          type: 'application/json'
+        };
+        var file = new File([data], "Config.json", metadata);
+        var reader = new FileReader();
+        reader.readAsText(file);
+        reader.onload =  function(){
+          dataS = JSON.parse(reader.result);
+          console.log("get file to begin");
+          onCreateFs(fs);
+        };
+      });
+    }
+    var onInitFs = (fs) =>{
       console.log("search file");
       fs.root.getFile('Config.json', {}, function(fileEntry) {
         console.log("file founded");
         fileEntry.file(function(file){
           var reader = new FileReader();
           reader.onloadend = function(e) {
-             console.log(JSON.parse(this.result));
+             if(dataS == null){
+               dataS = JSON.parse(this.result);
+               console.log("init dataSource: ", dataS["acnts"][0]);
+             }
            };
           reader.readAsText(file);
         });
       }, errorHandler);
     }
-    function onCreateFs(fs) {
+    var onCreateFs = (fs) =>{
       console.log("creating file");
-      fs.root.getFile('Config.json', { create : true , exclusive : true}, function(fileEntry) {
+      if(dataS == null)
+        getFileInit(fs);
+      else{
+        fs.root.getFile('Config.json', { create : true , exclusive : true}, function(fileEntry) {
+          fileEntry.createWriter(function(writer) {
+            writer.onwriteend = function(e) {
+              console.log('file created');
+            };
+            var blob = new Blob([JSON.stringify(dataS)], {type : "application/json"});
+            console.log('created: ',dataS);
+            writer.write(blob);
+          });
+        }, errorHandler);
+      }
+    }
+    var onEditFs = (fs, acntIndex, drActualindex) =>{
+      console.log("updating file");
+      fs.root.getFile('Config.json', { create : false}, function(fileEntry) {
+        console.log("file founded");
         fileEntry.createWriter(function(writer) {
           writer.onwriteend = function(e) {
-            console.log('file created');
+            console.log('file updated.');
+            createFormat(acntIndex, drActualindex);
           };
           var blob = new Blob([JSON.stringify(dataS)], {type : "application/json"});
           writer.write(blob);
         });
-      });
+      }, errorHandler);
     }
-    function errorHandler(e) {
+    var errorHandler = (e) =>{
       switch(e.code){
         case 8:
           console.log("FS error: No se encontró el directorio o archivo de las transacciónes, crear uno");
-          window.requestFileSystem(PERSISTENT, 5*1024*1024, onCreateFs, errorHandler);
+          window.requestFileSystem(PERSISTENT, 10*1024*1024, onCreateFs, errorHandler);
           break;
         default:
           console.log("FS error: "+e.code, e);
           break;
       }
-
     }
+    //method to alter fileSystem/////////////////////////////////
 
-    function getTrans() {
-        var table = $("#dtTran").DataTable({
-          "dom":"<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>"+
-          "<'row'<'col-sm-12'tr>>"+
-          "<'row'<'col-sm-12 col-md-7'i><'col-sm-12 col-md-5'p>>"
-          ,
-          "language": {
-            "lengthMenu": "Cantidad de filas _MENU_ ",
-            "zeroRecords": "No se encontróa nada, lo sentimos",
-            "info": "Mostrando la página _PAGE_ de _PAGES_",
-            "infoEmpty": "Ninguna fila disponible",
-            "search": "Busqueda:",
-            "paginate": {
-              "first":      "Primero",
-              "last":       "Último",
-              "next":       "Siguiente",
-              "previous":   "Anterior"
-            }
-          }
+    //get trans of acnt/////////////////////////////////
+    var getTrans = () =>{
+      $(document).on("click", "#btnBuscar", () =>{
+        transacFind["acntNum"] = $("#txtAcnt").val();
+        transacFind["dateRep"] = $("#txtDate").val();
+        $('#BuscarTranModal').modal('hide');
+        $("#txtAcnt").val("");
+        // var data = { E01ACMACC: transacFind["acntNum"] };
+        // $.ajax({
+        //         type: "POST",
+        //         url: 'https://jsonplaceholder.typicode.com/todos/1',//'http://192.168.43.100:3000/getUfenosa',
+        //         //data: JSON.stringify(data),
+        //         headers: {
+        //           'Accept': 'application/json',
+        //           // 'Access-Control-Allow-Credentials':true,
+        //           'Access-Control-Allow-Origin':'*',
+        //           // 'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept',
+        //           // 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+        //           'Content-Type':'application/json; charset=utf-8'
+        //         },
+        //         dataType: "json"
+        //     }).done(function (info) {
+        //         console.log( "ok", info);
+        //     }).fail(function(e) {
+        //       console.log( "error", e);
+        //     });
+        if(tableTransac == null){
+          tableTransac = $("#dtTran").DataTable({
+            "dom":"<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>"+
+            "<'row'<'col-sm-12'tr>>"+
+            "<'row'<'col-sm-12 col-md-7'i><'col-sm-12 col-md-5'p>>"
+            ,
+            "language": {
+              "lengthMenu": "Cantidad de filas _MENU_ ",
+              "zeroRecords": "No se encontró registros, lo sentimos",
+              "info": "Mostrando la página _PAGE_ de _PAGES_",
+              "infoEmpty": "Ninguna fila disponible",
+              "search": "Busqueda:",
+              "paginate": {
+                "first":      "Primero",
+                "last":       "Último",
+                "next":       "Siguiente",
+                "previous":   "Anterior"
+              }
+            },
+            ajax: {
+              method: "POST",
+              url: "http://192.168.43.100:3000/getUfenosa",
+              contentType: "application/json; charset=utf-8",
+              dataType: "json",
+              data: function (d) {
+                  d.E01ACMACC = transacFind["acntNum"]
+                  return JSON.stringify(d);
+              },
+              dataSrc: "d.data" //se accede a data dentro de d
+            },
+            columns: [
+              { "data": "" },
+              { "data": "" },
+              { "data": "" },
+              { "data": "" },
+              { "data": "" }
+            ]
+          });
+          tableTransac.on( 'xhr', function () {
+            var json = tableTransac.ajax.json();
+            console.log( "json loaded:" , json);
+          } );
+          $( "#btnDoFormat" ).show( "fast" );
+          extractTrans();
+        }else{
+          $( "#btnDoFormat" ).show( "fast" );
+          alert("ya existe tabla de transacciones");
+          tableTransac.ajax.reload();
+        }
       });
     }
+    //get trans of acnt/////////////////////////////////
+
+    //extract data of transacs/////////////////////////////////
+    var extractTrans = () =>{
+        $(document).on("click", "#btnDoFormat", () =>{
+            var dataTrans = tableTransac.rows();
+            if(dataTrans.data().length == 0){
+              console.log("No hay datos en la tabla");
+              return;
+            }
+            $( "#btnDoFormat" ).hide( "fast" );
+            var acntIndex =  dataS["acnts"].findIndex(element => element["acntNum"] == transacFind["acntNum"]);
+            var acnt = dataS["acnts"][acntIndex];//get the account founded
+            if(acnt == null){//add if not exist
+              acnt = { "acntNum":transacFind["acntNum"], "typeAcnt":"C", "coinAcnt":"COR", "data":[]};
+              dataS["acnts"].push(acnt);
+              acntIndex = dataS["acnts"].length - 1;
+              console.log("Cuenta añadida: ",dataS["acnts"]);
+            }
+            else
+              console.log("Cuenta existe: ",acnt);
+
+            var acntReport = dataS["acnts"][acntIndex]["data"];//get the report data of the account
+            var drActualindex = acntReport.findIndex(e => e["dateRep"] == transacFind["dateRep"]);
+            var datumReportActual = dataS["acnts"][acntIndex]["data"][drActualindex];//find a report with the same date
+            if(datumReportActual == null){//if doesnt exist report with the date today;
+              var datumReport = {"stateN":0, "initBal":0, "dateRep":transacFind["dateRep"], "finalBal":0};
+              if(acntReport.length == 0){//if reports dont have data, sonsecutive = 1
+                datumReport["stateN"] = 1;
+                drActualindex = 0;
+                console.log("New data for account");
+              }else{
+                drActualindex =acntReport.length;
+                datumReport["stateN"] = acntReport[drActualindex-1]["stateN"] + 1;
+              }
+              console.log("new report consecutive: ",datumReport);
+              dataS["acnts"][acntIndex]["data"].push(datumReport);
+            }else{
+              console.log("There are a report for date Setted");
+              dataS["acnts"][acntIndex]["data"][drActualindex]["initBal"] = 1;
+              dataS["acnts"][acntIndex]["data"][drActualindex]["finalBal"] = 1;
+            }
+
+            window.requestFileSystem(PERSISTENT, 10*1024*1024, (fs)=>{onEditFs(fs, acntIndex, drActualindex);}, errorHandler);//add data to account report
+        });
+    }
+
+    var createFormat = (acntIndex, drActualindex) =>{
+      var acnt = dataS["acnts"][acntIndex];//get the account founded
+      var date = acnt["data"][drActualindex]["dateRep"].split("-");
+      var builder = {
+        "ini":":20:INI"+date[1]+date[0]+date[2],
+        "id_acnt":":25:"+acnt["acntNum"],
+        "statement_num":":28C:"+acnt["data"][drActualindex]["stateN"],
+        "init_bal":":60F:"+acnt["typeAcnt"]+date[2].slice(2, 4)+date[1]+date[0]+doCoin(acnt["coinAcnt"])+acnt["data"][drActualindex]["initBal"].toString().replace(".", ','),
+        "trans":[],
+        "sub_final_bal1":"",
+        "sub_final_bal2":"",
+        "final_bal":""
+      };
+      var tableTrans = tableTransac.rows();
+      var fbalance = new Number(acnt["data"][drActualindex]["finalBal"]);
+      tableTrans.every( function ( rowIdx, tableLoop, rowLoop ) {
+        var data = this.data();
+        var dateT = data[0].split("-");
+        builder["trans"].push(":61:"+dateT[2].slice(2, 4)+dateT[1]+dateT[0]+data[1]+data[2].replace(".", ',')+doTypeTran(data[3])+data[4]);
+        builder["trans"].push("DEP: transacción de prueba");
+        fbalance = data[1]=="C" ? (fbalance + new Number(data[2])) : (fbalance - new Number(data[2]));
+       });
+      builder["sub_final_bal1"] = ":62M:"+acnt["typeAcnt"]+date[2].slice(2, 4)+date[1]+date[0]+doCoin(acnt["coinAcnt"])+fbalance.toString().replace(".", ',');
+      builder["sub_final_bal2"] = ":62F:"+acnt["typeAcnt"]+date[2].slice(2, 4)+date[1]+date[0]+doCoin(acnt["coinAcnt"])+fbalance.toString().replace(".", ',');
+      builder["final_bal"] = ":64:"+acnt["typeAcnt"]+date[2].slice(2, 4)+date[1]+date[0]+doCoin(acnt["coinAcnt"])+fbalance.toString().replace(".", ',');
+
+      var textSave = builder["ini"]+"\n";
+      textSave += builder["id_acnt"]+"\n";
+      textSave += builder["statement_num"]+"\n";
+      textSave += builder["init_bal"]+"\n";
+      builder["trans"].forEach(function (elemento, indice, array) {
+        textSave += elemento+"\n";
+      });
+      textSave += builder["sub_final_bal1"]+"\n";
+      textSave += builder["sub_final_bal2"]+"\n";
+      textSave += builder["final_bal"];
+      console.log(textSave);
+      saveData(textSave, "datos.txt");
+    }
+
+    var doTypeTran = (type) =>{
+      var col = ["NDEP","NCHK","NTRF"];
+      switch(type){
+        case "DP":
+          return col[0];
+          break;
+        case "CK":
+          return col[1];
+          break;
+        default:
+          return "NOTF"
+      }
+    }
+
+    var doCoin = (coin) =>{
+      var cols = ["NIO","DOL"];
+      switch(coin){
+        case "COR":
+          return cols[0];
+          break;
+        case "USD":
+          return cols[1];
+          break;
+        default:
+          return "NOF"
+      }
+    }
+
     var saveData = function (data, fileName) {
       var a = document.createElement("a");
       document.body.appendChild(a);
       a.style = "display: none";
-      var json = JSON.stringify(data),
-          blob = new Blob([json], {type: "octet/stream"}),
+      var text = data,
+          blob = new Blob([text], {type: "octet/stream"}),
           url = window.URL.createObjectURL(blob);
       a.href = url;
       a.download = fileName;
